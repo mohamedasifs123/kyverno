@@ -21,6 +21,10 @@ concurrency:
 jobs:
   cli-test:
     runs-on: ubuntu-latest
+    permissions:
+      packages: read
+    strategy:
+      fail-fast: false
     steps:
       - name: Checkout
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
@@ -42,16 +46,29 @@ jobs:
           then
             echo "TEST_GIT_BRANCH=${{ github.event.pull_request.base.ref }}" >> $GITHUB_ENV
           fi
+      - name: Install chainsaw
+        uses: kyverno/action-install-chainsaw@d12e54dd3506268b9d5bb61fbbcb2e7eec5fb70c # v0.1.1
+      # create cluster
+      - name: Create kind cluster
+        uses: helm/kind-action@dda0770415bac9fc20092cacbc54aa298604d140 # v1.8.0
+        with:
+          node_image: kindest/node:v1.29.0
+          cluster_name: kind
+          config: ./scripts/config/kind/default.yaml
       - name: Test CLI
         run: |
           KYVERNO_KUBECTL_VALIDATE=false VERSION=${{ github.ref_name }} make test-cli
+          sudo mv ./cmd/cli/kubectl-kyverno/kubectl-kyverno /usr/local/bin/
+          set -e
+          cd ./test/conformance/chainsaw/validate/cli && chainsaw test 
       - name: Test CLI (failures)
         run: |
+        
           CLI_PATH=$PWD/cmd/cli/kubectl-kyverno/kubectl-kyverno
           $CLI_PATH test ./test/cli/test-fail/missing-policy && exit 1 || exit 0
           $CLI_PATH test ./test/cli/test-fail/missing-rule && exit 1 || exit 0
-          $CLI_PATH test ./test/cli/test-fail/missing-resource && exit 1 || exit 0
-
+          $CLI_PATH test ./test/cli/test-fail/missing-resource && exit 1 || exit 0    
+   
   kubectl-validate-cli-test:
     runs-on: ubuntu-latest
     steps:
