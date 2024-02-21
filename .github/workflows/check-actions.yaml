@@ -17,10 +17,47 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-      - name: Ensure SHA pinned actions
-        uses: zgosalvez/github-actions-ensure-sha-pinned-actions@ba37328d4ea95eaf8b3bd6c6cef308f709a5f2ec # v3.0.3
+      - name: Setup build env
+        uses: ./.github/actions/setup-build-env
         with:
-          # slsa-github-generator requires using a semver tag for reusable workflows. 
-          # See: https://github.com/slsa-framework/slsa-github-generator#referencing-slsa-builders-and-generators
-          allowlist: |
-            slsa-framework/slsa-github-generator
+          free-disk-space: false
+      # install tools
+      - name: Install helm
+        id: helm
+        uses: azure/setup-helm@5119fcb9089d432beecbf79bb2c7915207344b78 # v3.5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install chainsaw
+        uses: kyverno/action-install-chainsaw@d12e54dd3506268b9d5bb61fbbcb2e7eec5fb70c # v0.1.1
+      # create cluster
+      - name: Create kind cluster
+        uses: helm/kind-action@dda0770415bac9fc20092cacbc54aa298604d140 # v1.8.0
+        with:
+          node_image: kindest/node:${{ matrix.k8s-version.version }}
+          cluster_name: kind
+          config: ./scripts/config/kind/default.yaml
+      # deploy kyverno
+      - name: Download kyverno images archive
+        uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
+        with:
+          name: kyverno.tar
+      - name: Load kyverno images archive in kind cluster
+        shell: bash
+        run: |
+          set -e
+          kind load image-archive kyverno.tar --name kind
+      - name: Install kyverno
+        shell: bash
+        run: |
+          set -e
+          export HELM=${{ steps.helm.outputs.helm-path }}
+          export USE_CONFIG=${{ join(matrix.config.values, ',') }}
+          make kind-install-kyverno
+      - name: Wait for kyverno ready
+        uses: ./.github/actions/kyverno-wait-ready  
+      - name: Test with Chainsaw
+        shell: bash
+        run: |
+          set -e
+          kubectl apply -f ./a.yaml
+          kubectl apply -f ./b.yaml
