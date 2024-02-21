@@ -27,8 +27,8 @@ const (
 )
 
 var (
-	InRangeRegex    = regexp.MustCompile(`^([-|\+]?\d+(?:\.\d+)?[A-Za-z]*)-([-|\+]?\d+(?:\.\d+)?[A-Za-z]*)$`)
-	NotInRangeRegex = regexp.MustCompile(`^([-|\+]?\d+(?:\.\d+)?[A-Za-z]*)!-([-|\+]?\d+(?:\.\d+)?[A-Za-z]*)$`)
+	InRangeRegex    = regexp.MustCompile(`^([-|\+]?\d+(?:\.\d+)?[A-Za-z%]*)-([-|\+]?\d+(?:\.\d+)?[A-Za-z%]*)$`)
+	NotInRangeRegex = regexp.MustCompile(`^([-|\+]?\d+(?:\.\d+)?[A-Za-z%]*)!-([-|\+]?\d+(?:\.\d+)?[A-Za-z%]*)$`)
 )
 
 // GetOperatorFromStringPattern parses opeartor from pattern
